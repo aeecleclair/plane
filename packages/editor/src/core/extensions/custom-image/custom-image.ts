@@ -4,12 +4,12 @@ import { ReactNodeViewRenderer } from "@tiptap/react";
 import { v4 as uuidv4 } from "uuid";
 // extensions
 import { CustomImageNode } from "@/extensions/custom-image";
+// helpers
+import { insertEmptyParagraphAtNodeBoundaries } from "@/helpers/insert-empty-paragraph-at-node-boundary";
 // plugins
 import { TrackImageDeletionPlugin, TrackImageRestorationPlugin, isFileValid } from "@/plugins/image";
 // types
 import { TFileHandler } from "@/types";
-// helpers
-import { insertEmptyParagraphAtNodeBoundaries } from "@/helpers/insert-empty-paragraph-at-node-boundary";
 
 export type InsertImageComponentProps = {
   file?: File;
@@ -21,7 +21,10 @@ declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     imageComponent: {
       insertImageComponent: ({ file, pos, event }: InsertImageComponentProps) => ReturnType;
-      uploadImage: (file: File) => () => Promise<string> | undefined;
+      uploadImage: (blockId: string, file: File) => () => Promise<string> | undefined;
+      updateAssetsUploadStatus: (updatedStatus: TFileHandler["assetsUploadStatus"]) => () => void;
+      getImageSource?: (path: string) => () => Promise<string>;
+      restoreImage: (src: string) => () => Promise<void>;
     };
   }
 }
@@ -30,13 +33,21 @@ export const getImageComponentImageFileMap = (editor: Editor) =>
   (editor.storage.imageComponent as UploadImageExtensionStorage | undefined)?.fileMap;
 
 export interface UploadImageExtensionStorage {
+  assetsUploadStatus: TFileHandler["assetsUploadStatus"];
   fileMap: Map<string, UploadEntity>;
 }
 
 export type UploadEntity = ({ event: "insert" } | { event: "drop"; file: File }) & { hasOpenedFileInputOnce?: boolean };
 
 export const CustomImageExtension = (props: TFileHandler) => {
-  const { upload, delete: deleteImage, restore: restoreImage } = props;
+  const {
+    assetsUploadStatus,
+    getAssetSrc,
+    upload,
+    delete: deleteImageFn,
+    restore: restoreImageFn,
+    validation: { maxFileSize },
+  } = props;
 
   return Image.extend<Record<string, unknown>, UploadImageExtensionStorage>({
     name: "imageComponent",
@@ -78,23 +89,6 @@ export const CustomImageExtension = (props: TFileHandler) => {
       return ["image-component", mergeAttributes(HTMLAttributes)];
     },
 
-    onCreate(this) {
-      const imageSources = new Set<string>();
-      this.editor.state.doc.descendants((node) => {
-        if (node.type.name === this.name) {
-          imageSources.add(node.attrs.src);
-        }
-      });
-      imageSources.forEach(async (src) => {
-        try {
-          const assetUrlWithWorkspaceId = new URL(src).pathname.substring(1);
-          await restoreImage(assetUrlWithWorkspaceId);
-        } catch (error) {
-          console.error("Error restoring image: ", error);
-        }
-      });
-    },
-
     addKeyboardShortcuts() {
       return {
         ArrowDown: insertEmptyParagraphAtNodeBoundaries("down", this.name),
@@ -104,9 +98,26 @@ export const CustomImageExtension = (props: TFileHandler) => {
 
     addProseMirrorPlugins() {
       return [
-        TrackImageDeletionPlugin(this.editor, deleteImage, this.name),
-        TrackImageRestorationPlugin(this.editor, restoreImage, this.name),
+        TrackImageDeletionPlugin(this.editor, deleteImageFn, this.name),
+        TrackImageRestorationPlugin(this.editor, restoreImageFn, this.name),
       ];
+    },
+
+    onCreate(this) {
+      const imageSources = new Set<string>();
+      this.editor.state.doc.descendants((node) => {
+        if (node.type.name === this.name) {
+          if (!node.attrs.src?.startsWith("http")) return;
+          imageSources.add(node.attrs.src);
+        }
+      });
+      imageSources.forEach(async (src) => {
+        try {
+          await restoreImageFn(src);
+        } catch (error) {
+          console.error("Error restoring image: ", error);
+        }
+      });
     },
 
     addStorage() {
@@ -114,16 +125,28 @@ export const CustomImageExtension = (props: TFileHandler) => {
         fileMap: new Map(),
         deletedImageSet: new Map<string, boolean>(),
         uploadInProgress: false,
+        maxFileSize,
+        // escape markdown for images
+        markdown: {
+          serialize() {},
+        },
+        assetsUploadStatus,
       };
     },
 
     addCommands() {
       return {
         insertImageComponent:
-          (props: { file?: File; pos?: number; event: "insert" | "drop" }) =>
+          (props) =>
           ({ commands }) => {
             // Early return if there's an invalid file being dropped
-            if (props?.file && !isFileValid(props.file)) {
+            if (
+              props?.file &&
+              !isFileValid({
+                file: props.file,
+                maxFileSize,
+              })
+            ) {
               return false;
             }
 
@@ -162,9 +185,16 @@ export const CustomImageExtension = (props: TFileHandler) => {
               attrs: attributes,
             });
           },
-        uploadImage: (file: File) => async () => {
-          const fileUrl = await upload(file);
+        uploadImage: (blockId, file) => async () => {
+          const fileUrl = await upload(blockId, file);
           return fileUrl;
+        },
+        updateAssetsUploadStatus: (updatedStatus) => () => {
+          this.storage.assetsUploadStatus = updatedStatus;
+        },
+        getImageSource: (path) => async () => await getAssetSrc(path),
+        restoreImage: (src) => async () => {
+          await restoreImageFn(src);
         },
       };
     },

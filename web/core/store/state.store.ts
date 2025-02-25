@@ -1,15 +1,16 @@
 import groupBy from "lodash/groupBy";
 import set from "lodash/set";
-import { makeObservable, observable, computed, action, runInAction } from "mobx";
+import { action, computed, makeObservable, observable, runInAction } from "mobx";
 import { computedFn } from "mobx-utils";
-// types
+// plane imports
+import { STATE_GROUPS } from "@plane/constants";
 import { IState } from "@plane/types";
 // helpers
 import { sortStates } from "@/helpers/state.helper";
-// services
-import { ProjectStateService } from "@/services/project";
-// plane web store
-import { CoreRootStore } from "./root.store";
+// plane web
+import { syncIssuesWithDeletedStates } from "@/local-db/utils/load-workspace";
+import { ProjectStateService } from "@/plane-web/services/project/project-state.service";
+import { RootStore } from "@/plane-web/store/root.store";
 
 export interface IStateStore {
   //Loaders
@@ -48,10 +49,11 @@ export class StateStore implements IStateStore {
   stateMap: Record<string, IState> = {};
   //loaders
   fetchedMap: Record<string, boolean> = {};
+  rootStore: RootStore;
   router;
-  stateService;
+  stateService: ProjectStateService;
 
-  constructor(_rootStore: CoreRootStore) {
+  constructor(_rootStore: RootStore) {
     makeObservable(this, {
       // observables
       stateMap: observable,
@@ -71,6 +73,7 @@ export class StateStore implements IStateStore {
     });
     this.stateService = new ProjectStateService();
     this.router = _rootStore.router;
+    this.rootStore = _rootStore;
   }
 
   /**
@@ -97,7 +100,20 @@ export class StateStore implements IStateStore {
    */
   get groupedProjectStates() {
     if (!this.router.projectId) return;
-    return groupBy(this.projectStates, "group") as Record<string, IState[]>;
+
+    // First group the existing states
+    const groupedStates = groupBy(this.projectStates, "group") as Record<string, IState[]>;
+
+    // Ensure all STATE_GROUPS are present
+    const allGroups = Object.keys(STATE_GROUPS).reduce(
+      (acc, group) => ({
+        ...acc,
+        [group]: groupedStates[group] || [],
+      }),
+      {} as Record<string, IState[]>
+    );
+
+    return allGroups;
   }
 
   /**
@@ -206,6 +222,7 @@ export class StateStore implements IStateStore {
     await this.stateService.deleteState(workspaceSlug, projectId, stateId).then(() => {
       runInAction(() => {
         delete this.stateMap[stateId];
+        syncIssuesWithDeletedStates([stateId]);
       });
     });
   };
@@ -254,7 +271,7 @@ export class StateStore implements IStateStore {
       });
       // updating using api
       await this.stateService.patchState(workspaceSlug, projectId, stateId, payload);
-    } catch (err) {
+    } catch {
       // reverting back to old state group if api fails
       runInAction(() => {
         this.stateMap = originalStates;

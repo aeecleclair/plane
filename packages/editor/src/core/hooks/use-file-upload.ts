@@ -1,17 +1,21 @@
 import { DragEvent, useCallback, useEffect, useState } from "react";
 import { Editor } from "@tiptap/core";
-import { isFileValid } from "@/plugins/image";
+// extensions
 import { insertImagesSafely } from "@/extensions/drop";
+// plugins
+import { isFileValid } from "@/plugins/image";
 
-export const useUploader = ({
-  onUpload,
-  editor,
-  loadImageFromFileSystem,
-}: {
-  onUpload: (url: string) => void;
+type TUploaderArgs = {
+  blockId: string;
   editor: Editor;
   loadImageFromFileSystem: (file: string) => void;
-}) => {
+  maxFileSize: number;
+  onUpload: (url: string) => void;
+};
+
+export const useUploader = (args: TUploaderArgs) => {
+  const { blockId, editor, loadImageFromFileSystem, maxFileSize, onUpload } = args;
+  // states
   const [uploading, setUploading] = useState(false);
 
   const uploadFile = useCallback(
@@ -23,7 +27,10 @@ export const useUploader = ({
       setUploading(true);
       const fileNameTrimmed = trimFileName(file.name);
       const fileWithTrimmedName = new File([file], fileNameTrimmed, { type: file.type });
-      const isValid = isFileValid(fileWithTrimmedName);
+      const isValid = isFileValid({
+        file: fileWithTrimmedName,
+        maxFileSize,
+      });
       if (!isValid) {
         setImageUploadInProgress(false);
         return;
@@ -43,7 +50,7 @@ export const useUploader = ({
         reader.readAsDataURL(fileWithTrimmedName);
         // @ts-expect-error - TODO: fix typings, and don't remove await from
         // here for now
-        const url: string = await editor?.commands.uploadImage(fileWithTrimmedName);
+        const url: string = await editor?.commands.uploadImage(blockId, fileWithTrimmedName);
 
         if (!url) {
           throw new Error("Something went wrong while uploading the image");
@@ -64,15 +71,16 @@ export const useUploader = ({
   return { uploading, uploadFile };
 };
 
-export const useDropZone = ({
-  uploader,
-  editor,
-  pos,
-}: {
-  uploader: (file: File) => Promise<void>;
+type TDropzoneArgs = {
   editor: Editor;
+  maxFileSize: number;
   pos: number;
-}) => {
+  uploader: (file: File) => Promise<void>;
+};
+
+export const useDropZone = (args: TDropzoneArgs) => {
+  const { editor, maxFileSize, pos, uploader } = args;
+  // states
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [draggedInside, setDraggedInside] = useState<boolean>(false);
 
@@ -98,11 +106,17 @@ export const useDropZone = ({
     async (e: DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       setDraggedInside(false);
-      if (e.dataTransfer.files.length === 0) {
+      if (e.dataTransfer.files.length === 0 || !editor.isEditable) {
         return;
       }
-      const fileList = e.dataTransfer.files;
-      await uploadFirstImageAndInsertRemaining(editor, fileList, pos, uploader);
+      const filesList = e.dataTransfer.files;
+      await uploadFirstImageAndInsertRemaining({
+        editor,
+        filesList,
+        maxFileSize,
+        pos,
+        uploader,
+      });
     },
     [uploader, editor, pos]
   );
@@ -129,22 +143,33 @@ function trimFileName(fileName: string, maxLength = 100) {
   return fileName;
 }
 
+type TMultipleImagesArgs = {
+  editor: Editor;
+  filesList: FileList;
+  maxFileSize: number;
+  pos: number;
+  uploader: (file: File) => Promise<void>;
+};
+
 // Upload the first image and insert the remaining images for uploading multiple image
 // post insertion of image-component
-export async function uploadFirstImageAndInsertRemaining(
-  editor: Editor,
-  fileList: FileList,
-  pos: number,
-  uploaderFn: (file: File) => Promise<void>
-) {
+export async function uploadFirstImageAndInsertRemaining(args: TMultipleImagesArgs) {
+  const { editor, filesList, maxFileSize, pos, uploader } = args;
   const filteredFiles: File[] = [];
-  for (let i = 0; i < fileList.length; i += 1) {
-    const item = fileList.item(i);
-    if (item && item.type.indexOf("image") !== -1 && isFileValid(item)) {
+  for (let i = 0; i < filesList.length; i += 1) {
+    const item = filesList.item(i);
+    if (
+      item &&
+      item.type.indexOf("image") !== -1 &&
+      isFileValid({
+        file: item,
+        maxFileSize,
+      })
+    ) {
       filteredFiles.push(item);
     }
   }
-  if (filteredFiles.length !== fileList.length) {
+  if (filteredFiles.length !== filesList.length) {
     console.warn("Some files were not images and have been ignored.");
   }
   if (filteredFiles.length === 0) {
@@ -154,7 +179,7 @@ export async function uploadFirstImageAndInsertRemaining(
 
   // Upload the first image
   const firstFile = filteredFiles[0];
-  uploaderFn(firstFile);
+  uploader(firstFile);
 
   // Insert the remaining images
   const remainingFiles = filteredFiles.slice(1);
