@@ -1,10 +1,8 @@
 import { FC, useEffect } from "react";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { useTheme } from "next-themes";
-// helpers
-import { API_BASE_URL } from "@/helpers/common.helper";
-// hooks
+import { API_BASE_URL } from "@plane/constants";
 import { useInstance } from "@/hooks/store";
 // images
 import OIDCLogo from "@/public/logos/oidc-logo.svg";

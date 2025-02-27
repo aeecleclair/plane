@@ -1,11 +1,14 @@
+"use client";
+
 import { FC, useState } from "react";
 import isEmpty from "lodash/isEmpty";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 // types
-import { IFormattedInstanceConfiguration, TInstanceConfigurationKeys, TInstanceOpenIDConnectAuthenticationConfigurationKeys } from "@plane/types";
-// ui
+import { API_BASE_URL } from "@plane/constants";
+import { IFormattedInstanceConfiguration, TInstanceOpenIDConnectAuthenticationConfigurationKeys, TInstanceConfigurationKeys } from "@plane/types";
 import { Button, TOAST_TYPE, getButtonStyling, setToast, ToggleSwitch, setPromiseToast } from "@plane/ui";
+import { cn } from "@plane/utils";
 // components
 import {
   CodeBlock,
@@ -15,8 +18,6 @@ import {
   TControllerInputFormField,
   TCopyField,
 } from "@/components/common";
-// helpers
-import { API_BASE_URL, cn } from "@/helpers/common.helper";
 // hooks
 import { useInstance } from "@/hooks/store";
 

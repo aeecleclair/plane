@@ -69,8 +69,8 @@ const InstanceOpenIDConnectAuthenticationPage = observer(() => {
                 value={Boolean(parseInt(enableOpenIDConnectConfig))}
                 onChange={() => {
                   Boolean(parseInt(enableOpenIDConnectConfig)) === true
-                    ? updateConfig("IS_GITLAB_ENABLED", "0")
-                    : updateConfig("IS_GITLAB_ENABLED", "1");
+                    ? updateConfig("IS_OIDC_ENABLED", "0")
+                    : updateConfig("IS_OIDC_ENABLED", "1");
                 }}
                 size="sm"
                 disabled={isSubmitting || !formattedConfig}
