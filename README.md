@@ -1,3 +1,11 @@
+# ARCHIVED
+I archived this project, because I didn't have enough time to maintain it. Everybody is free to work on it.
+We used Plane a while in our company but phased it out, because we had to maintain a fork. We won't use Plane again in the foreseable future, becuase <strong>we don't support a SSO Tax</strong>.
+<br>
+<br>
+
+## Original Readme:
+
 <h1>OpenID Connect for Plane</h1>
 
 This repository tries to provide OpenID Connect to Plane, because there was no official implementation. Now there is an SSO Tax on it. This is an inofficial implementation and is not supported by or affiliated with the original Plane project.
