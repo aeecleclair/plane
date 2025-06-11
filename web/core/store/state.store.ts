@@ -24,6 +24,8 @@ export interface IStateStore {
   // computed actions
   getStateById: (stateId: string | null | undefined) => IState | undefined;
   getProjectStates: (projectId: string | null | undefined) => IState[] | undefined;
+  getProjectStateIds: (projectId: string | null | undefined) => string[] | undefined;
+  getProjectDefaultStateId: (projectId: string | null | undefined) => string | undefined;
   // fetch actions
   fetchProjectStates: (workspaceSlug: string, projectId: string) => Promise<IState[]>;
   fetchWorkspaceStates: (workspaceSlug: string) => Promise<IState[]>;
@@ -43,6 +45,8 @@ export interface IStateStore {
     stateId: string,
     payload: Partial<IState>
   ) => Promise<void>;
+
+  getStatePercentageInGroup: (stateId: string | null | undefined) => number | undefined;
 }
 
 export class StateStore implements IStateStore {
@@ -134,6 +138,29 @@ export class StateStore implements IStateStore {
     const workspaceSlug = this.router.workspaceSlug || "";
     if (!projectId || !(this.fetchedMap[projectId] || this.fetchedMap[workspaceSlug])) return;
     return sortStates(Object.values(this.stateMap).filter((state) => state.project_id === projectId));
+  });
+
+  /**
+   * Returns the state ids for a project by projectId
+   * @param projectId
+   * @returns string[]
+   */
+  getProjectStateIds = computedFn((projectId: string | null | undefined) => {
+    const workspaceSlug = this.router.workspaceSlug;
+    if (!workspaceSlug || !projectId || !(this.fetchedMap[projectId] || this.fetchedMap[workspaceSlug]))
+      return undefined;
+    const projectStates = this.getProjectStates(projectId);
+    return projectStates?.map((state) => state.id) ?? [];
+  });
+
+  /**
+   * Returns the default state id for a project
+   * @param projectId
+   * @returns string | undefined
+   */
+  getProjectDefaultStateId = computedFn((projectId: string | null | undefined) => {
+    const projectStates = this.getProjectStates(projectId);
+    return projectStates?.find((state) => state.default)?.id;
   });
 
   /**
@@ -278,4 +305,27 @@ export class StateStore implements IStateStore {
       });
     }
   };
+
+  /**
+   * Returns the percentage position of a state within its group based on sequence
+   * @param stateId The ID of the state to find the percentage for
+   * @returns The percentage position of the state in its group (0-100), or -1 if not found
+   */
+  getStatePercentageInGroup = computedFn((stateId: string | null | undefined) => {
+    if (!stateId || !this.stateMap[stateId]) return -1;
+
+    const state = this.stateMap[stateId];
+    const group = state.group;
+
+    if (!group || !this.groupedProjectStates || !this.groupedProjectStates[group]) return -1;
+
+    // Get all states in the same group
+    const statesInGroup = this.groupedProjectStates[group];
+    const stateIndex = statesInGroup.findIndex((s) => s.id === stateId);
+
+    if (stateIndex === -1) return undefined;
+
+    // Calculate percentage: ((index + 1) / totalLength) * 100
+    return ((stateIndex + 1) / statesInGroup.length) * 100;
+  });
 }

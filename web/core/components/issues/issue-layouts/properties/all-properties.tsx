@@ -5,7 +5,7 @@ import xor from "lodash/xor";
 import { observer } from "mobx-react";
 import { useParams, usePathname } from "next/navigation";
 // icons
-import { CalendarCheck2, CalendarClock, Layers, Link, Paperclip } from "lucide-react";
+import { Layers, Link, Paperclip } from "lucide-react";
 // types
 import { ISSUE_UPDATED } from "@plane/constants";
 // i18n
@@ -15,13 +15,13 @@ import { TIssue, IIssueDisplayProperties, TIssuePriorities } from "@plane/types"
 import { Tooltip } from "@plane/ui";
 // components
 import {
-  DateDropdown,
   EstimateDropdown,
   PriorityDropdown,
   MemberDropdown,
   ModuleDropdown,
   CycleDropdown,
   StateDropdown,
+  DateRangeDropdown,
 } from "@/components/dropdowns";
 // constants
 // helpers
@@ -33,6 +33,8 @@ import { useEventTracker, useLabel, useIssues, useProjectState, useProject, useP
 import { useAppRouter } from "@/hooks/use-app-router";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import { usePlatformOS } from "@/hooks/use-platform-os";
+// plane web components
+import { WorkItemLayoutAdditionalProperties } from "@/plane-web/components/issues/issue-layouts/additional-properties";
 // local components
 import { IssuePropertyLabels } from "./labels";
 import { WithDisplayPropertiesHOC } from "./with-display-properties-HOC";
@@ -263,12 +265,6 @@ export const IssueProperties: React.FC<IIssueProperties> = observer((props) => {
 
   const defaultLabelOptions = issue?.label_ids?.map((id) => labelMap[id]) || [];
 
-  const minDate = getDate(issue.start_date);
-  minDate?.setDate(minDate.getDate());
-
-  const maxDate = getDate(issue.target_date);
-  maxDate?.setDate(maxDate.getDate());
-
   const handleEventPropagation = (e: SyntheticEvent<HTMLDivElement>) => {
     e.stopPropagation();
     e.preventDefault();
@@ -308,40 +304,34 @@ export const IssueProperties: React.FC<IIssueProperties> = observer((props) => {
         </div>
       </WithDisplayPropertiesHOC>
 
-      {/* start date */}
-      <WithDisplayPropertiesHOC displayProperties={displayProperties} displayPropertyKey="start_date">
+      {/* merged dates */}
+      <WithDisplayPropertiesHOC
+        displayProperties={displayProperties}
+        displayPropertyKey={["start_date", "due_date"]}
+        shouldRenderProperty={(properties) => !!(properties.start_date || properties.due_date)}
+      >
         <div className="h-5" onFocus={handleEventPropagation} onClick={handleEventPropagation}>
-          <DateDropdown
-            value={issue.start_date ?? null}
-            onChange={handleStartDate}
-            maxDate={maxDate}
-            placeholder={t("common.order_by.start_date")}
-            icon={<CalendarClock className="h-3 w-3 flex-shrink-0" />}
-            buttonVariant={issue.start_date ? "border-with-text" : "border-without-text"}
-            optionsClassName="z-10"
-            disabled={isReadOnly}
-            renderByDefault={isMobile}
-            showTooltip
-          />
-        </div>
-      </WithDisplayPropertiesHOC>
-
-      {/* target/due date */}
-      <WithDisplayPropertiesHOC displayProperties={displayProperties} displayPropertyKey="due_date">
-        <div className="h-5" onFocus={handleEventPropagation} onClick={handleEventPropagation}>
-          <DateDropdown
-            value={issue?.target_date ?? null}
-            onChange={handleTargetDate}
-            minDate={minDate}
-            placeholder={t("common.order_by.due_date")}
-            icon={<CalendarCheck2 className="h-3 w-3 flex-shrink-0" />}
-            buttonVariant={issue.target_date ? "border-with-text" : "border-without-text"}
+          <DateRangeDropdown
+            value={{
+              from: getDate(issue.start_date) || undefined,
+              to: getDate(issue.target_date) || undefined,
+            }}
+            onSelect={(range) => {
+              handleStartDate(range?.from ?? null);
+              handleTargetDate(range?.to ?? null);
+            }}
+            hideIcon={{
+              from: false,
+            }}
+            isClearable
+            mergeDates
+            buttonVariant={issue.start_date || issue.target_date ? "border-with-text" : "border-without-text"}
             buttonClassName={shouldHighlightIssueDueDate(issue.target_date, stateDetails?.group) ? "text-red-500" : ""}
-            clearIconClassName="!text-custom-text-100"
-            optionsClassName="z-10"
             disabled={isReadOnly}
             renderByDefault={isMobile}
             showTooltip
+            renderPlaceholder={false}
+            customTooltipHeading="Date Range"
           />
         </div>
       </WithDisplayPropertiesHOC>
@@ -429,36 +419,38 @@ export const IssueProperties: React.FC<IIssueProperties> = observer((props) => {
 
       {/* extra render properties */}
       {/* sub-issues */}
-      <WithDisplayPropertiesHOC
-        displayProperties={displayProperties}
-        displayPropertyKey="sub_issue_count"
-        shouldRenderProperty={(properties) => !!properties.sub_issue_count && !!subIssueCount}
-      >
-        <Tooltip
-          tooltipHeading={isEpic ? t("issues.label", { count: 2 }) : t("common.sub_work_items")}
-          tooltipContent={`${subIssueCount}`}
-          isMobile={isMobile}
-          renderByDefault={false}
+      {!isEpic && (
+        <WithDisplayPropertiesHOC
+          displayProperties={displayProperties}
+          displayPropertyKey="sub_issue_count"
+          shouldRenderProperty={(properties) => !!properties.sub_issue_count && !!subIssueCount}
         >
-          <div
-            onFocus={handleEventPropagation}
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              if (subIssueCount) redirectToIssueDetail();
-            }}
-            className={cn(
-              "flex h-5 flex-shrink-0 items-center justify-center gap-2 overflow-hidden rounded border-[0.5px] border-custom-border-300 px-2.5 py-1",
-              {
-                "hover:bg-custom-background-80 cursor-pointer": subIssueCount,
-              }
-            )}
+          <Tooltip
+            tooltipHeading={t("common.sub_work_items")}
+            tooltipContent={`${subIssueCount}`}
+            isMobile={isMobile}
+            renderByDefault={false}
           >
-            <Layers className="h-3 w-3 flex-shrink-0" strokeWidth={2} />
-            <div className="text-xs">{subIssueCount}</div>
-          </div>
-        </Tooltip>
-      </WithDisplayPropertiesHOC>
+            <div
+              onFocus={handleEventPropagation}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                if (subIssueCount) redirectToIssueDetail();
+              }}
+              className={cn(
+                "flex h-5 flex-shrink-0 items-center justify-center gap-2 overflow-hidden rounded border-[0.5px] border-custom-border-300 px-2.5 py-1",
+                {
+                  "hover:bg-custom-background-80 cursor-pointer": subIssueCount,
+                }
+              )}
+            >
+              <Layers className="h-3 w-3 flex-shrink-0" strokeWidth={2} />
+              <div className="text-xs">{subIssueCount}</div>
+            </div>
+          </Tooltip>
+        </WithDisplayPropertiesHOC>
+      )}
 
       {/* attachments */}
       <WithDisplayPropertiesHOC
@@ -505,6 +497,9 @@ export const IssueProperties: React.FC<IIssueProperties> = observer((props) => {
           </div>
         </Tooltip>
       </WithDisplayPropertiesHOC>
+
+      {/* Additional Properties */}
+      <WorkItemLayoutAdditionalProperties displayProperties={displayProperties} issue={issue} />
 
       {/* label */}
       <WithDisplayPropertiesHOC displayProperties={displayProperties} displayPropertyKey="labels">

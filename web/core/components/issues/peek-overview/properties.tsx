@@ -23,8 +23,8 @@ import { getDate, renderFormattedPayloadDate } from "@/helpers/date-time.helper"
 import { shouldHighlightIssueDueDate } from "@/helpers/issue.helper";
 import { useIssueDetail, useMember, useProject, useProjectState } from "@/hooks/store";
 // plane web components
-import { IssueAdditionalPropertyValuesUpdate } from "@/plane-web/components/issue-types/values";
 import { IssueParentSelectRoot, IssueWorklogProperty } from "@/plane-web/components/issues";
+import { WorkItemAdditionalSidebarProperties } from "@/plane-web/components/issues/issue-details/additional-properties";
 
 interface IPeekOverviewProperties {
   workspaceSlug: string;
@@ -135,7 +135,7 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
                 showTooltip
                 userIds={createdByDetails?.display_name.includes("-intake") ? null : createdByDetails?.id}
               />
-              <span className="flex-grow truncate text-xs leading-5">
+              <span className="flex-grow truncate  leading-5">
                 {createdByDetails?.display_name.includes("-intake") ? "Plane" : createdByDetails?.display_name}
               </span>
             </div>
@@ -291,15 +291,14 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
           disabled={disabled}
         />
 
-        {issue.type_id && (
-          <IssueAdditionalPropertyValuesUpdate
-            issueId={issueId}
-            issueTypeId={issue.type_id}
-            projectId={projectId}
-            workspaceSlug={workspaceSlug}
-            isDisabled={disabled}
-          />
-        )}
+        <WorkItemAdditionalSidebarProperties
+          workItemId={issue.id}
+          workItemTypeId={issue.type_id}
+          projectId={projectId}
+          workspaceSlug={workspaceSlug}
+          isEditable={!disabled}
+          isPeekView
+        />
       </div>
     </div>
   );

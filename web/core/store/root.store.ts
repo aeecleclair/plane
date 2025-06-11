@@ -1,5 +1,8 @@
 import { enableStaticRendering } from "mobx-react";
+// plane imports
+import { FALLBACK_LANGUAGE, LANGUAGE_STORAGE_KEY } from "@plane/i18n";
 // plane web store
+import { AnalyticsStore, IAnalyticsStore } from "@/plane-web/store/analytics.store";
 import { CommandPaletteStore, ICommandPaletteStore } from "@/plane-web/store/command-palette.store";
 import { RootStore } from "@/plane-web/store/root.store";
 import { IStateStore, StateStore } from "@/plane-web/store/state.store";
@@ -47,6 +50,7 @@ export class CoreRootStore {
   state: IStateStore;
   label: ILabelStore;
   dashboard: IDashboardStore;
+  analytics: IAnalyticsStore;
   projectPages: IProjectPageStore;
   router: IRouterStore;
   commandPalette: ICommandPaletteStore;
@@ -67,11 +71,11 @@ export class CoreRootStore {
     this.router = new RouterStore();
     this.commandPalette = new CommandPaletteStore();
     this.instance = new InstanceStore();
-    this.user = new UserStore(this);
+    this.user = new UserStore(this as unknown as RootStore);
     this.theme = new ThemeStore();
     this.workspaceRoot = new WorkspaceRootStore(this);
     this.projectRoot = new ProjectRootStore(this);
-    this.memberRoot = new MemberRootStore(this);
+    this.memberRoot = new MemberRootStore(this as unknown as RootStore);
     this.cycle = new CycleStore(this);
     this.cycleFilter = new CycleFilterStore(this);
     this.module = new ModulesStore(this);
@@ -92,19 +96,20 @@ export class CoreRootStore {
     this.transient = new TransientStore();
     this.stickyStore = new StickyStore();
     this.editorAssetStore = new EditorAssetStore();
+    this.analytics = new AnalyticsStore();
   }
 
   resetOnSignOut() {
     // handling the system theme when user logged out from the app
     localStorage.setItem("theme", "system");
-
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, FALLBACK_LANGUAGE);
     this.router = new RouterStore();
     this.commandPalette = new CommandPaletteStore();
     this.instance = new InstanceStore();
-    this.user = new UserStore(this);
+    this.user = new UserStore(this as unknown as RootStore);
     this.workspaceRoot = new WorkspaceRootStore(this);
     this.projectRoot = new ProjectRootStore(this);
-    this.memberRoot = new MemberRootStore(this);
+    this.memberRoot = new MemberRootStore(this as unknown as RootStore);
     this.cycle = new CycleStore(this);
     this.cycleFilter = new CycleFilterStore(this);
     this.module = new ModulesStore(this);

@@ -24,13 +24,15 @@ import { IssueSearchModalEmptyState } from "./issue-search-modal-empty-state";
 
 type Props = {
   workspaceSlug: string | undefined;
-  projectId: string | undefined;
+  projectId?: string;
   isOpen: boolean;
   handleClose: () => void;
   searchParams: Partial<TProjectIssuesSearchParams>;
   handleOnSubmit: (data: ISearchIssueResponse[]) => Promise<void>;
   workspaceLevelToggle?: boolean;
   shouldHideIssue?: (issue: ISearchIssueResponse) => boolean;
+  selectedWorkItems?: ISearchIssueResponse[];
+  workItemSearchServiceCallback?: (params: TProjectIssuesSearchParams) => Promise<ISearchIssueResponse[]>;
 };
 
 const projectService = new ProjectService();
@@ -47,6 +49,8 @@ export const ExistingIssuesListModal: React.FC<Props> = (props) => {
     handleOnSubmit,
     workspaceLevelToggle = false,
     shouldHideIssue,
+    selectedWorkItems,
+    workItemSearchServiceCallback,
   } = props;
   // states
   const [isLoading, setIsLoading] = useState(false);
@@ -85,20 +89,39 @@ export const ExistingIssuesListModal: React.FC<Props> = (props) => {
     handleClose();
   };
 
-  useEffect(() => {
-    if (!isOpen || !workspaceSlug || !projectId) return;
+  const handleSearch = () => {
+    if (!isOpen || !workspaceSlug) return;
     setIsLoading(true);
-    projectService
-      .projectIssuesSearch(workspaceSlug as string, projectId as string, {
-        search: debouncedSearchTerm,
-        ...searchParams,
-        workspace_search: isWorkspaceLevel,
-      })
+    const searchService =
+      workItemSearchServiceCallback ??
+      (projectId
+        ? projectService.projectIssuesSearch.bind(projectService, workspaceSlug?.toString(), projectId?.toString())
+        : undefined);
+    if (!searchService) return;
+    searchService({
+      search: debouncedSearchTerm,
+      ...searchParams,
+      workspace_search: isWorkspaceLevel,
+    })
       .then((res) => setIssues(res))
       .finally(() => {
         setIsSearching(false);
         setIsLoading(false);
       });
+  };
+
+  const handleSelectIssues = () => {
+    setSelectedIssues((prevData) => (prevData.length === filteredIssues.length ? [] : [...filteredIssues]));
+  };
+
+  useEffect(() => {
+    if (selectedWorkItems) {
+      setSelectedIssues(selectedWorkItems);
+    }
+  }, [isOpen, selectedWorkItems]);
+
+  useEffect(() => {
+    handleSearch();
   }, [debouncedSearchTerm, isOpen, isWorkspaceLevel, projectId, workspaceSlug]);
 
   const filteredIssues = issues.filter((issue) => !shouldHideIssue?.(issue));
@@ -298,15 +321,31 @@ export const ExistingIssuesListModal: React.FC<Props> = (props) => {
                     )}
                   </Combobox.Options>
                 </Combobox>
-                <div className="flex items-center justify-end gap-2 p-3">
-                  <Button variant="neutral-primary" size="sm" onClick={handleClose}>
-                    {t("common.cancel")}
+                <div className="flex justify-between items-center">
+                  <Button
+                    variant="link-primary"
+                    size="sm"
+                    onClick={handleSelectIssues}
+                    disabled={filteredIssues.length === 0}
+                  >
+                    {selectedIssues.length === issues.length
+                      ? t("issue.select.deselect_all")
+                      : t("issue.select.select_all")}
                   </Button>
-                  {selectedIssues.length > 0 && (
-                    <Button variant="primary" size="sm" onClick={onSubmit} loading={isSubmitting}>
+                  <div className="flex items-center justify-end gap-2 p-3">
+                    <Button variant="neutral-primary" size="sm" onClick={handleClose}>
+                      {t("common.cancel")}
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={onSubmit}
+                      loading={isSubmitting}
+                      disabled={isSubmitting || selectedIssues.length === 0}
+                    >
                       {isSubmitting ? t("common.adding") : t("issue.select.add_selected")}
                     </Button>
-                  )}
+                  </div>
                 </div>
               </Dialog.Panel>
             </Transition.Child>

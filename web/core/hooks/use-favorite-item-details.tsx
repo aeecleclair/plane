@@ -1,4 +1,4 @@
-// plane types
+// plane imports
 import { IFavorite } from "@plane/types";
 // components
 import {
@@ -11,19 +11,22 @@ import { getPageName } from "@/helpers/page.helper";
 import { useProject, useProjectView, useCycle, useModule } from "@/hooks/store";
 // plane web hooks
 import { EPageStoreType, usePage } from "@/plane-web/hooks/store";
+import { useAdditionalFavoriteItemDetails } from "@/plane-web/hooks/use-additional-favorite-item-details";
 
 export const useFavoriteItemDetails = (workspaceSlug: string, favorite: IFavorite) => {
-  const favoriteItemId = favorite?.entity_identifier;
-  const favoriteItemLogoProps = favorite?.entity_data?.logo_props;
+  const {
+    entity_identifier: favoriteItemId,
+    entity_data: { logo_props: favoriteItemLogoProps },
+    entity_type: favoriteItemEntityType,
+  } = favorite;
   const favoriteItemName = favorite?.entity_data?.name || favorite?.name;
-  const favoriteItemEntityType = favorite?.entity_type;
-
   // store hooks
   const { getViewById } = useProjectView();
   const { getProjectById } = useProject();
   const { getCycleById } = useCycle();
   const { getModuleById } = useModule();
-
+  // additional details
+  const { getAdditionalFavoriteItemDetails } = useAdditionalFavoriteItemDetails();
   // derived values
   const pageDetail = usePage({
     pageId: favoriteItemId ?? "",
@@ -32,7 +35,6 @@ export const useFavoriteItemDetails = (workspaceSlug: string, favorite: IFavorit
   const viewDetails = getViewById(favoriteItemId ?? "");
   const cycleDetail = getCycleById(favoriteItemId ?? "");
   const moduleDetail = getModuleById(favoriteItemId ?? "");
-
   const currentProjectDetails = getProjectById(favorite.project_id ?? "");
 
   let itemIcon;
@@ -41,29 +43,31 @@ export const useFavoriteItemDetails = (workspaceSlug: string, favorite: IFavorit
 
   switch (favoriteItemEntityType) {
     case "project":
-      itemTitle = currentProjectDetails?.name || favoriteItemName;
+      itemTitle = currentProjectDetails?.name ?? favoriteItemName;
       itemIcon = getFavoriteItemIcon("project", currentProjectDetails?.logo_props || favoriteItemLogoProps);
       break;
     case "page":
-      itemTitle = getPageName(pageDetail?.name || favoriteItemName);
-      itemIcon = getFavoriteItemIcon("page", pageDetail?.logo_props || favoriteItemLogoProps);
+      itemTitle = getPageName(pageDetail?.name ?? favoriteItemName);
+      itemIcon = getFavoriteItemIcon("page", pageDetail?.logo_props ?? favoriteItemLogoProps);
       break;
     case "view":
-      itemTitle = viewDetails?.name || favoriteItemName;
+      itemTitle = viewDetails?.name ?? favoriteItemName;
       itemIcon = getFavoriteItemIcon("view", viewDetails?.logo_props || favoriteItemLogoProps);
       break;
     case "cycle":
-      itemTitle = cycleDetail?.name || favoriteItemName;
+      itemTitle = cycleDetail?.name ?? favoriteItemName;
       itemIcon = getFavoriteItemIcon("cycle");
       break;
     case "module":
-      itemTitle = moduleDetail?.name || favoriteItemName;
+      itemTitle = moduleDetail?.name ?? favoriteItemName;
       itemIcon = getFavoriteItemIcon("module");
       break;
-    default:
-      itemTitle = favoriteItemName;
-      itemIcon = getFavoriteItemIcon(favoriteItemEntityType);
+    default: {
+      const additionalDetails = getAdditionalFavoriteItemDetails(workspaceSlug, favorite);
+      itemTitle = additionalDetails.itemTitle;
+      itemIcon = additionalDetails.itemIcon;
       break;
+    }
   }
 
   return { itemIcon, itemTitle, itemLink };
