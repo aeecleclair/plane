@@ -76,6 +76,7 @@ class Command(BaseCommand):
                 "category": "GITHUB",
                 "is_encrypted": False,
             },
+            {
                 "key": "OIDC_AUTO",
                 "value": os.environ.get("OIDC_AUTO", "0"),
                 "category": "OIDC",
