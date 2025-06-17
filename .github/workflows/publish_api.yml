@@ -42,7 +42,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./apiserver
-          file: ./Dockerfile.api
+          file: ./apiserver/Dockerfile.api
           platforms: linux/amd64 #,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
