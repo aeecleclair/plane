@@ -2,11 +2,11 @@ name: Build and Publish Plane Proxy Docker Image
 on:
   workflow_dispatch:
   push:
-    paths-ignore:
-      - 'web/**'
-      - 'apiserver/**'
-      - 'admin/**'
-      - 'space/**'
+    # paths-ignore:
+    #   - 'web/**'
+    #   - 'apiserver/**'
+    #   - 'admin/**'
+    #   - 'space/**'
     tags:
       - 'v*.*.*'
 

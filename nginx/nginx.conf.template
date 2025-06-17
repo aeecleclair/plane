@@ -25,7 +25,7 @@ http {
             proxy_set_header Upgrade ${dollar}http_upgrade;
             proxy_set_header Connection "upgrade";
             proxy_set_header Host ${dollar}http_host;
-            proxy_pass http://web:3000/;
+            proxy_pass http://${WEB_HOSTNAME}:3000/;
         }
 
         location /api/ {
@@ -33,7 +33,7 @@ http {
             proxy_set_header Upgrade ${dollar}http_upgrade;
             proxy_set_header Connection "upgrade";
             proxy_set_header Host ${dollar}http_host;
-            proxy_pass http://api:8000/api/;
+            proxy_pass http://${API_HOSTNAME}:8000/api/;
         }
 
         location /auth/ {
@@ -41,7 +41,7 @@ http {
             proxy_set_header Upgrade ${dollar}http_upgrade;
             proxy_set_header Connection "upgrade";
             proxy_set_header Host ${dollar}http_host;
-            proxy_pass http://api:8000/auth/;
+            proxy_pass http://${API_HOSTNAME}:8000/auth/;
         }
 
         location /god-mode/ {
@@ -49,7 +49,7 @@ http {
             proxy_set_header Upgrade ${dollar}http_upgrade;
             proxy_set_header Connection "upgrade";
             proxy_set_header Host ${dollar}http_host;
-            proxy_pass http://admin:3000/god-mode/;
+            proxy_pass http://${ADMIN_HOSTNAME}:3000/god-mode/;
         }
 
         location /live/ {
@@ -57,7 +57,7 @@ http {
             proxy_set_header Upgrade ${dollar}http_upgrade;
             proxy_set_header Connection "upgrade";
             proxy_set_header Host ${dollar}http_host;
-            proxy_pass http://live:3000/live/;
+            proxy_pass http://${LIVE_HOSTNAME}:3000/live/;
         }
 
         location /spaces/ {
@@ -65,7 +65,7 @@ http {
             proxy_set_header Upgrade ${dollar}http_upgrade;
             proxy_set_header Connection "upgrade";
             proxy_set_header Host ${dollar}http_host;
-            proxy_pass http://space:3000/spaces/;
+            proxy_pass http://${SPACE_HOSTNAME}:3000/spaces/;
         }
 
         location /${BUCKET_NAME} {
@@ -73,7 +73,7 @@ http {
             proxy_set_header Upgrade ${dollar}http_upgrade;
             proxy_set_header Connection "upgrade";
             proxy_set_header Host ${dollar}http_host;
-            proxy_pass http://plane-minio:9000/${BUCKET_NAME};
+            proxy_pass http://${MINIO_HOSTNAME}:9000/${BUCKET_NAME};
         }
     }
 }

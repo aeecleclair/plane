@@ -2,11 +2,11 @@ name: Build and Publish Plane API Docker Image
 on:
   workflow_dispatch:
   push:
-    paths-ignore:
-      - 'space/**'
-      - 'web/**'
-      - 'admin/**'
-      - 'nginx/**'
+    # paths-ignore:
+    #   - 'space/**'
+    #   - 'web/**'
+    #   - 'admin/**'
+    #   - 'nginx/**'
     tags:
       - 'v*.*.*'
 
