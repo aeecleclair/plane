@@ -2,9 +2,9 @@ name: Create PR on Sync
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - "sync/**"
+  # push:
+  #   branches:
+  #     - "sync/**"
 
 env:
   CURRENT_BRANCH: ${{ github.ref_name }}

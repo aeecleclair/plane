@@ -17,8 +17,8 @@ on:
         description: 'Base Tag Name'
         required: false
         default: ''
-  release:
-    types: [released, prereleased]
+  # release:
+  #   types: [released, prereleased]
 
 env:
   TARGET_BRANCH: ${{ github.ref_name || github.event.release.target_commitish }}
