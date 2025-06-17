@@ -1,4 +1,4 @@
-name: Build and Publish Plane Docker Images
+name: Build and Publish Plane Proxy Docker Image
 on:
   workflow_dispatch:
   push:
